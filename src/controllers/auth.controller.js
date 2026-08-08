@@ -23,19 +23,50 @@ export async function register(req,res){
         email,
         password: hashedPassword
     })
-    const token = jwt.sign({
+    const accessToken = jwt.sign({
         id: user._id
     }, config.JWT_SECRET,
     {
-        expiresIn: "1d"
-    }
-)
-res.status(201).json({
+        expiresIn: "15m"
+    })
+    const refreshToken = jwt.sign({
+        id:user._id
+    },config.JWT_SECRET,{
+        expiresIn:"7d"
+    })
+    res.cookie("refreshToken",refreshToken,{
+        httpOnly: true,
+        secure:true,
+        sameSite:"strict",
+        maxAge: 7 * 24 * 60 * 1000 
+    })
+
+
+    res.status(201).json({
     message:"User registered successfully",
     user:{
         username: user.username,
         email: user.email,
     },
-    token
-})
+    accessToken,
+    })
+}
+
+export async function getMe(req, res){
+    const token = req.headers.authorization?.split(" ")[1];
+    if(!token){
+        return res.status(491).json({
+            message:"token not found"
+        })
+    }
+    const decoded = jwt.verify(token, config.JWT_SECRET)//gets token and its intialization and expiration time
+
+    const user = await userModel.findById(decoded.id)
+    res.status(200).json({
+        message:"user fetched successfully.",
+        user:{
+            username: user.username,
+            email:user.email,
+        }
+    })
 }
